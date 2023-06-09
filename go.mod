@@ -1,4 +1,4 @@
-module extension-manager
+module extensionctl
 
 go 1.20
 
