@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -26,7 +25,7 @@ type Extension struct {
 func GetExtensions() ([]Extension, error) {
 	chartsDir := "/home/kaapana/extensions" // Update this with the actual path to your charts directory
 
-	files, err := ioutil.ReadDir(chartsDir)
+	files, err := os.ReadDir(chartsDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read charts directory: %w", err)
 	}
@@ -148,7 +147,7 @@ func extractExtensionInfo(filePath string) (Extension, error) {
 }
 
 func extractFileContents(tarReader *tar.Reader) (string, error) {
-	data, err := ioutil.ReadAll(tarReader)
+	data, err := io.ReadAll(tarReader)
 	if err != nil {
 		return "", fmt.Errorf("failed to read file contents: %w", err)
 	}
