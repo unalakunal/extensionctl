@@ -88,10 +88,8 @@ func FindPrereqDockerfiles(config *AppExtensionConfig) ([]string, error) {
 
 		firstLine := strings.TrimSpace(lines[0])
 		if strings.HasPrefix(firstLine, "FROM local-only/") {
-			fmt.Println(firstLine)
 			imageName, _, err := getImageNameAndTagFromFirstLine(firstLine)
 			if err != nil {
-				fmt.Printf("Errorrr: %s", err)
 				return nil, err
 			}
 			fmt.Println(imageName)
@@ -117,7 +115,6 @@ func FindPrereqDockerfiles(config *AppExtensionConfig) ([]string, error) {
 
 			firstLine := strings.TrimSpace(lines[0])
 			if strings.HasPrefix(firstLine, "FROM local-only/") {
-				fmt.Printf("firstLine: %s\n", firstLine)
 				imageName := getImageNameFromLabel(firstLine)
 				fmt.Printf("imageName: %s\n", imageName)
 				dockerfilePaths, err := findDockerfilesInKaapanaPath(imageName, config.KaapanaPath)
@@ -197,7 +194,6 @@ func getImageNameAndTagFromFirstLine(line string) (string, string, error) {
 }
 
 func findDockerfilesInKaapanaPath(imageName string, kaapanaPath string) ([]string, error) {
-	fmt.Println("in f")
 	var dockerfilePaths []string
 
 	add_count := 0
@@ -224,7 +220,6 @@ func findDockerfilesInKaapanaPath(imageName string, kaapanaPath string) ([]strin
 
 		return nil
 	})
-	fmt.Printf("add_count for %s is %d\n", imageName, add_count)
 
 	if err != nil {
 		return nil, err

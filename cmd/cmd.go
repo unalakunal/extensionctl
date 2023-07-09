@@ -103,7 +103,6 @@ func buildImages(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	}
-	fmt.Println("movin on")
 
 	for _, dockerfile := range config.DockerfilePaths {
 		if err := image.BuildAndSaveImage(config.DirPath, dockerfile); err != nil {
