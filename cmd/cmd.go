@@ -2,6 +2,7 @@ package main
 
 import (
 	"extensionctl/extension"
+	"extensionctl/image"
 	"fmt"
 	"os"
 
@@ -21,6 +22,7 @@ func main() {
 
 	// Add subcommands for different functionalities
 	rootCmd.AddCommand(getExtensionsCmd())
+	rootCmd.AddCommand(buildImageCmd())
 
 	// Execute the CLI
 	if err := rootCmd.Execute(); err != nil {
@@ -58,4 +60,57 @@ func getExtensionsCmd() *cobra.Command {
 	}
 
 	return cmd
+}
+
+func buildImageCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "build",
+		Short: "Build and save Docker images",
+		Args:  cobra.ExactArgs(1),
+		RunE:  buildImages,
+	}
+
+	return cmd
+}
+
+func buildImages(cmd *cobra.Command, args []string) error {
+	configPath := args[0]
+	config, err := image.ParseConfigFile(configPath)
+	if err != nil {
+		return err
+	}
+	fmt.Println("parsed config file")
+
+	if err := image.ValidateConfig(config); err != nil {
+		return err
+	}
+	fmt.Println("config validated")
+
+	if len(config.DockerfilePaths) == 0 {
+		if err := image.GlobDockerfilePaths(config, configPath); err != nil {
+			return err
+		}
+	}
+	fmt.Printf("config.DockerfilePaths: %s\n", config.DockerfilePaths)
+
+	prereqDockerfiles, err := image.FindPrereqDockerfiles(config)
+	if err != nil {
+		return err
+	}
+
+	for _, prereqDockerfile := range prereqDockerfiles {
+		if _, err := image.BuildDockerImage(prereqDockerfile, "local-only/"); err != nil {
+			return err
+		}
+	}
+	fmt.Println("movin on")
+
+	for _, dockerfile := range config.DockerfilePaths {
+		if err := image.BuildAndSaveImage(config.DirPath, dockerfile); err != nil {
+			return err
+		}
+	}
+
+	fmt.Println("Successfully built and saved the images.")
+	return nil
 }
