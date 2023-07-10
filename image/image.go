@@ -49,9 +49,9 @@ func isAbsolutePath(path string) bool {
 }
 
 func GlobDockerfilePaths(config *AppExtensionConfig, configPath string) error {
-	files, err := filepath.Glob(filepath.Join(config.DirPath, "/**/Dockerfile*"))
+	files, err := filepath.Glob(filepath.Join(config.DirPath, "/**/**/Dockerfile*"))
 	if err != nil {
-		fmt.Printf("error with Glob %s: %s", filepath.Join(config.DirPath, "/**/Dockerfile*"), err)
+		fmt.Printf("error with Glob %s: %s", filepath.Join(config.DirPath, "/**/**/Dockerfile*"), err)
 		return err
 	}
 	if len(files) == 0 {
@@ -115,7 +115,7 @@ func FindPrereqDockerfiles(config *AppExtensionConfig) ([]string, error) {
 
 			firstLine := strings.TrimSpace(lines[0])
 			if strings.HasPrefix(firstLine, "FROM local-only/") {
-				imageName := getImageNameFromLabel(firstLine)
+				imageName := getImageNameFromFirstLine(firstLine)
 				fmt.Printf("imageName: %s\n", imageName)
 				dockerfilePaths, err := findDockerfilesInKaapanaPath(imageName, config.KaapanaPath)
 				if err != nil {
@@ -165,6 +165,18 @@ func getImageNameFromLabel(line string) string {
 	if len(split) == 2 {
 		return strings.Trim(split[1], "\"'")
 	}
+	return ""
+}
+
+func getImageNameFromFirstLine(line string) string {
+	fmt.Printf("getImageNameFromFirstLine %s\n", line)
+	split := strings.Split(line, ":")
+
+	if len(split) == 2 {
+		trimmed := strings.Split(split[0], "/")
+		return trimmed[len(trimmed)-1]
+	}
+	fmt.Println(fmt.Errorf("split failed in getImageNameFromFirstLine %s", split))
 	return ""
 }
 
