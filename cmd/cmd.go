@@ -98,6 +98,14 @@ func buildImages(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// change image references
+	if err := image.ChangeImageRefs(config.DirPath, "{DEFAULT_REGISTRY}", "docker.io/kaapana"); err != nil {
+		return err
+	}
+	if err := image.ChangeImageRefs(config.DirPath, "{KAAPANA_BUILD_VERSION}", "latest"); err != nil {
+		return err
+	}
+
 	for _, prereqDockerfile := range prereqDockerfiles {
 		if _, err := image.BuildDockerImage(prereqDockerfile, "local-only/"); err != nil {
 			return err

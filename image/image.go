@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -44,21 +45,50 @@ func ValidateConfig(config *AppExtensionConfig) error {
 	return nil
 }
 
+func visitFile(path string, info os.DirEntry, err error) error {
+	if err != nil {
+		fmt.Printf("Encountered error: %v\n", err)
+		return nil
+	}
+
+	if info.IsDir() {
+		// Skip directories
+		return nil
+	}
+
+	fmt.Println(path)
+	return nil
+}
+
 func isAbsolutePath(path string) bool {
 	return filepath.IsAbs(path)
 }
 
 func GlobDockerfilePaths(config *AppExtensionConfig, configPath string) error {
-	files, err := filepath.Glob(filepath.Join(config.DirPath, "/**/**/Dockerfile*"))
+	var dockerfilePaths []string
+	err := filepath.WalkDir(config.DirPath, func(path string, info os.DirEntry, err error) error {
+		if err != nil {
+			fmt.Printf("Encountered error: %v\n", err)
+			return nil
+		}
+
+		if info.IsDir() {
+			// Skip directories
+			return nil
+		}
+
+		if strings.HasSuffix(path, "Dockerfile") {
+			fmt.Println(path)
+			dockerfilePaths = append(dockerfilePaths, path)
+		}
+		return nil
+	})
+	fmt.Printf("dockerfilePaths: %s", dockerfilePaths)
 	if err != nil {
-		fmt.Printf("error with Glob %s: %s", filepath.Join(config.DirPath, "/**/**/Dockerfile*"), err)
-		return err
-	}
-	if len(files) == 0 {
-		return fmt.Errorf("no dockerfiles found in %s", filepath.Join(config.DirPath, "/**/Dockerfile*"))
+		fmt.Printf("Encountered error while walking directory: %v\n", err)
 	}
 
-	config.DockerfilePaths = files
+	config.DockerfilePaths = dockerfilePaths
 
 	return writeConfigFile(config, configPath)
 }
@@ -335,6 +365,49 @@ func BuildAndSaveImage(dirPath string, dockerfile string) error {
 	err = command.Run()
 	if err != nil {
 		return errors.New("failed to save Docker image: " + err.Error())
+	}
+
+	return nil
+}
+
+func ChangeImageRefs(dirPath string, query string, newValue string) error {
+	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			fmt.Printf("Error accessing path %s: %v\n", path, err)
+			return err
+		}
+
+		if !info.IsDir() && strings.HasSuffix(path, ".py") {
+			err := searchAndReplace(path, query, newValue)
+			if err != nil {
+				fmt.Printf("Error searching and replacing in file %s: %v\n", path, err)
+			}
+			return nil
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		fmt.Printf("Error walking through directory: %v\n", err)
+		return err
+	}
+	return nil
+}
+
+func searchAndReplace(file string, query string, newValue string) error {
+	content, err := ioutil.ReadFile(file)
+	if err != nil {
+		return err
+	}
+
+	if strings.Contains(string(content), query) {
+		fmt.Printf("Changing %s to %s in file %s\n", query, newValue, file)
+	}
+	newContent := strings.ReplaceAll(string(content), query, newValue)
+	err = ioutil.WriteFile(file, []byte(newContent), 0)
+	if err != nil {
+		return err
 	}
 
 	return nil
