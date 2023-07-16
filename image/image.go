@@ -10,6 +10,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/fatih/color"
 )
 
 type AppExtensionConfig struct {
@@ -35,11 +37,15 @@ func ParseConfigFile(configPath string) (*AppExtensionConfig, error) {
 
 func ValidateConfig(config *AppExtensionConfig) error {
 	if config.DirPath == "" || config.KaapanaPath == "" {
-		return errors.New("<dir_path> or <kaapana_path> is empty")
+		err := errors.New("<dir_path> or <kaapana_path> is empty")
+		color.Red(err.Error())
+		return err
 	}
 
 	if !isAbsolutePath(config.DirPath) || !isAbsolutePath(config.KaapanaPath) {
-		return errors.New("<dir_path> or <kaapana_path> is not a valid absolute path")
+		err := errors.New("<dir_path> or <kaapana_path> is not a valid absolute path")
+		color.Red(err.Error())
+		return err
 	}
 
 	return nil
@@ -47,8 +53,8 @@ func ValidateConfig(config *AppExtensionConfig) error {
 
 func visitFile(path string, info os.DirEntry, err error) error {
 	if err != nil {
-		fmt.Printf("Encountered error: %v\n", err)
-		return nil
+		color.Red(fmt.Sprintf("Encountered error: %v\n", err))
+		return err
 	}
 
 	if info.IsDir() {
@@ -206,7 +212,7 @@ func getImageNameFromFirstLine(line string) string {
 		trimmed := strings.Split(split[0], "/")
 		return trimmed[len(trimmed)-1]
 	}
-	fmt.Println(fmt.Errorf("split failed in getImageNameFromFirstLine %s", split))
+	color.Red(fmt.Sprintf("split failed in getImageNameFromFirstLine %s", split))
 	return ""
 }
 
@@ -243,12 +249,14 @@ func findDockerfilesInKaapanaPath(imageName string, kaapanaPath string) ([]strin
 	err := filepath.Walk(kaapanaPath, func(filePath string, info os.FileInfo, err error) error {
 		// go through all the Dockerfiles inside kaapanaPath
 		if err != nil {
+			color.Red(err.Error())
 			return err
 		}
 
 		if !info.IsDir() && info.Name() == "Dockerfile" {
 			lines, err := readLines(filePath)
 			if err != nil {
+				color.Red(err.Error())
 				return err
 			}
 
@@ -353,6 +361,7 @@ func getFirstLine(filepath string) string {
 func BuildAndSaveImage(dirPath string, dockerfile string) error {
 	imageName, err := BuildDockerImage(dockerfile, "docker.io/kaapana/")
 	if err != nil {
+		color.Red(err.Error())
 		return err
 	}
 
@@ -364,6 +373,7 @@ func BuildAndSaveImage(dirPath string, dockerfile string) error {
 
 	err = command.Run()
 	if err != nil {
+		color.Red(err.Error())
 		return errors.New("failed to save Docker image: " + err.Error())
 	}
 
@@ -373,14 +383,14 @@ func BuildAndSaveImage(dirPath string, dockerfile string) error {
 func ChangeImageRefs(dirPath string, query string, newValue string) error {
 	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			fmt.Printf("Error accessing path %s: %v\n", path, err)
+			color.Red(fmt.Sprintf("Error accessing path %s: %v\n", path, err))
 			return err
 		}
 
 		if !info.IsDir() && strings.HasSuffix(path, ".py") {
 			err := searchAndReplace(path, query, newValue)
 			if err != nil {
-				fmt.Printf("Error searching and replacing in file %s: %v\n", path, err)
+				color.Red(fmt.Sprintf("Error searching and replacing in file %s: %v\n", path, err))
 			}
 			return nil
 		}
@@ -389,7 +399,7 @@ func ChangeImageRefs(dirPath string, query string, newValue string) error {
 	})
 
 	if err != nil {
-		fmt.Printf("Error walking through directory: %v\n", err)
+		color.Red(fmt.Sprintf("Error walking through directory: %v\n", err))
 		return err
 	}
 	return nil
@@ -398,6 +408,7 @@ func ChangeImageRefs(dirPath string, query string, newValue string) error {
 func searchAndReplace(file string, query string, newValue string) error {
 	content, err := ioutil.ReadFile(file)
 	if err != nil {
+		color.Red(err.Error())
 		return err
 	}
 
@@ -407,6 +418,7 @@ func searchAndReplace(file string, query string, newValue string) error {
 	newContent := strings.ReplaceAll(string(content), query, newValue)
 	err = ioutil.WriteFile(file, []byte(newContent), 0)
 	if err != nil {
+		color.Red(err.Error())
 		return err
 	}
 
