@@ -18,9 +18,11 @@ type AppExtensionConfig struct {
 	DockerfilePaths []string `json:"dockerfile_paths"`
 	DirPath         string   `json:"dir_path"`
 	KaapanaPath     string   `json:"kaapana_path"`
+	NoSave          bool     `json:"no_save"`
+	NoRebuild       bool     `json:"no_rebuild"`
 }
 
-func ParseConfigFile(configPath string) (*AppExtensionConfig, error) {
+func ParseConfigFile(configPath string, noSave bool, noRebuild bool) (*AppExtensionConfig, error) {
 	file, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, err
@@ -31,6 +33,8 @@ func ParseConfigFile(configPath string) (*AppExtensionConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+	config.NoSave = noSave
+	config.NoRebuild = noRebuild
 
 	return &config, nil
 }
@@ -53,7 +57,7 @@ func ValidateConfig(config *AppExtensionConfig) error {
 
 func visitFile(path string, info os.DirEntry, err error) error {
 	if err != nil {
-		color.Red(fmt.Sprintf("Encountered error: %v\n", err))
+		color.Red("Encountered error: %v\n", err)
 		return err
 	}
 
@@ -74,7 +78,7 @@ func GlobDockerfilePaths(config *AppExtensionConfig, configPath string) error {
 	var dockerfilePaths []string
 	err := filepath.WalkDir(config.DirPath, func(path string, info os.DirEntry, err error) error {
 		if err != nil {
-			fmt.Printf("Encountered error: %v\n", err)
+			color.Red("Encountered error: %s\n", err.Error())
 			return nil
 		}
 
@@ -91,7 +95,7 @@ func GlobDockerfilePaths(config *AppExtensionConfig, configPath string) error {
 	})
 	fmt.Printf("dockerfilePaths: %s", dockerfilePaths)
 	if err != nil {
-		fmt.Printf("Encountered error while walking directory: %v\n", err)
+		color.Red("Encountered error while walking directory: %s\n", err.Error())
 	}
 
 	config.DockerfilePaths = dockerfilePaths
@@ -102,11 +106,13 @@ func GlobDockerfilePaths(config *AppExtensionConfig, configPath string) error {
 func writeConfigFile(config *AppExtensionConfig, configPath string) error {
 	file, err := json.MarshalIndent(config, "", "    ")
 	if err != nil {
+		color.Red(err.Error())
 		return err
 	}
 
 	err = os.WriteFile(configPath, file, 0644)
 	if err != nil {
+		color.Red(err.Error())
 		return err
 	}
 
@@ -119,6 +125,7 @@ func FindPrereqDockerfiles(config *AppExtensionConfig) ([]string, error) {
 	for _, dockerfile := range config.DockerfilePaths {
 		lines, err := readLines(dockerfile)
 		if err != nil {
+			color.Red(err.Error())
 			return nil, err
 		}
 
@@ -126,9 +133,10 @@ func FindPrereqDockerfiles(config *AppExtensionConfig) ([]string, error) {
 		if strings.HasPrefix(firstLine, "FROM local-only/") {
 			imageName, _, err := getImageNameAndTagFromFirstLine(firstLine)
 			if err != nil {
+				color.Red(err.Error())
 				return nil, err
 			}
-			fmt.Println(imageName)
+			fmt.Printf("found local prerequisite image %s\n", imageName)
 			dockerfilePaths, err := findDockerfilesInKaapanaPath(imageName, config.KaapanaPath)
 			if err != nil {
 				return nil, err
@@ -212,7 +220,7 @@ func getImageNameFromFirstLine(line string) string {
 		trimmed := strings.Split(split[0], "/")
 		return trimmed[len(trimmed)-1]
 	}
-	color.Red(fmt.Sprintf("split failed in getImageNameFromFirstLine %s", split))
+	color.Red("split failed in getImageNameFromFirstLine %s", split)
 	return ""
 }
 
@@ -324,8 +332,8 @@ func getLabelofDockerfile(dockerfile string) (string, error) {
 	return res, nil
 }
 
-func BuildDockerImage(dockerfile string, prefix string) (string, error) {
-	fmt.Printf("building docker image: %s\n", dockerfile)
+func BuildDockerImage(dockerfile string, prefix string, noRebuild bool) (string, error) {
+	color.Blue("building docker image: %s\n", dockerfile)
 	imageName, err := getLabelofDockerfile(dockerfile)
 	if err != nil {
 		return "", err
@@ -335,8 +343,13 @@ func BuildDockerImage(dockerfile string, prefix string) (string, error) {
 	if strings.HasSuffix(ctxPath, suffix) {
 		ctxPath, _ = strings.CutSuffix(ctxPath, suffix)
 	}
-	fmt.Printf("imageName %s, tag %s\n", imageName, prefix+imageName+":latest")
-	command := exec.Command("docker", "build", "-t", prefix+imageName+":latest", ctxPath)
+	tag := prefix + imageName + ":latest"
+	if imageExists(tag) && noRebuild {
+		color.Yellow("image %s already exists, not building since no_rebuild==true", tag)
+		return imageName, nil
+	}
+	color.Blue("imageName %s, tag %s\n", imageName, tag)
+	command := exec.Command("docker", "build", "-t", tag, ctxPath)
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
 
@@ -345,7 +358,7 @@ func BuildDockerImage(dockerfile string, prefix string) (string, error) {
 		return "", errors.New("failed to build Docker image: " + err.Error())
 	}
 
-	fmt.Printf("successfully built %s in path %s\n", "local-only/"+imageName+":latest", dockerfile)
+	color.Magenta("successfully built %s in path %s\n", "local-only/"+imageName+":latest", dockerfile)
 
 	return imageName, nil
 }
@@ -358,13 +371,20 @@ func getFirstLine(filepath string) string {
 	return lines[0]
 }
 
-func BuildAndSaveImage(dirPath string, dockerfile string) error {
-	imageName, err := BuildDockerImage(dockerfile, "docker.io/kaapana/")
+func BuildAndSaveImage(dirPath string, dockerfile string, config *AppExtensionConfig) error {
+	// build
+	imageName, err := BuildDockerImage(dockerfile, "docker.io/kaapana/", config.NoRebuild)
 	if err != nil {
 		color.Red(err.Error())
 		return err
 	}
 
+	if config.NoSave {
+		color.Yellow("image save disabled, returning after build")
+		return nil
+	}
+
+	// save
 	savePath := filepath.Join(dirPath, imageName+".tar")
 	fmt.Printf("saving image %s into %s...\n", "docker.io/kaapana/"+imageName, savePath)
 	command := exec.Command("docker", "save", "docker.io/kaapana/"+imageName+":latest", "-o", savePath)
@@ -381,16 +401,18 @@ func BuildAndSaveImage(dirPath string, dockerfile string) error {
 }
 
 func ChangeImageRefs(dirPath string, query string, newValue string) error {
+	color.Blue("Changing image references in .py files")
 	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			color.Red(fmt.Sprintf("Error accessing path %s: %v\n", path, err))
+			color.Red("Error accessing path %s: %v\n", path, err)
 			return err
 		}
 
 		if !info.IsDir() && strings.HasSuffix(path, ".py") {
+			color.Magenta("file: %s , changing '%s' to '%s'", path, query, newValue)
 			err := searchAndReplace(path, query, newValue)
 			if err != nil {
-				color.Red(fmt.Sprintf("Error searching and replacing in file %s: %v\n", path, err))
+				color.Red("Error searching and replacing in file %s: %v\n", path, err)
 			}
 			return nil
 		}
@@ -399,7 +421,7 @@ func ChangeImageRefs(dirPath string, query string, newValue string) error {
 	})
 
 	if err != nil {
-		color.Red(fmt.Sprintf("Error walking through directory: %v\n", err))
+		color.Red("Error walking through directory: %v\n", err)
 		return err
 	}
 	return nil
@@ -423,4 +445,18 @@ func searchAndReplace(file string, query string, newValue string) error {
 	}
 
 	return nil
+}
+
+func imageExists(image string) bool {
+	out, err := exec.Command("docker", "images", image).Output()
+	if err != nil {
+		color.Red(err.Error())
+	}
+
+	numLines := strings.Count(string(out), "\n")
+	if numLines > 1 {
+		return true
+	}
+
+	return false
 }

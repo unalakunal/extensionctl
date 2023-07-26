@@ -77,12 +77,15 @@ func getExtensions(cmd *cobra.Command, args []string) error {
 
 func buildImages(cmd *cobra.Command, args []string) error {
 	noColor, _ := cmd.Flags().GetBool("no_color")
+	noSave, _ := cmd.Flags().GetBool("no_save")
+	noRebuild, _ := cmd.Flags().GetBool("no_rebuild")
+
 	if noColor {
 		os.Setenv("NO_COLOR", "TRUE")
 	}
 	color.Magenta("Building images...")
 	configPath := args[0]
-	config, err := image.ParseConfigFile(configPath)
+	config, err := image.ParseConfigFile(configPath, noSave, noRebuild)
 	if err != nil {
 		return err
 	}
@@ -114,18 +117,18 @@ func buildImages(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, prereqDockerfile := range prereqDockerfiles {
-		if _, err := image.BuildDockerImage(prereqDockerfile, "local-only/"); err != nil {
+		if _, err := image.BuildDockerImage(prereqDockerfile, "local-only/", config.NoRebuild); err != nil {
 			return err
 		}
 	}
 
 	for _, dockerfile := range config.DockerfilePaths {
-		if err := image.BuildAndSaveImage(config.DirPath, dockerfile); err != nil {
+		if err := image.BuildAndSaveImage(config.DirPath, dockerfile, config); err != nil {
 			return err
 		}
 	}
 
-	color.Magenta("Successfully built and saved the images.")
+	color.Blue("Successfully built and saved the images.")
 	return nil
 }
 
@@ -155,7 +158,9 @@ func main() {
 	}
 
 	// Flags
-	rootCmd.PersistentFlags().BoolP("no_color", "n", false, "Disable color")
+	rootCmd.PersistentFlags().BoolP("no_color", "c", false, "Disable color")
+	rootCmd.PersistentFlags().BoolP("no_save", "s", false, "Disable image save")
+	rootCmd.PersistentFlags().BoolP("no_rebuild", "b", false, "Disable rebuilding existing images")
 
 	// Add subcommands for different functionalities
 	rootCmd.AddCommand(extensionsCmd)
