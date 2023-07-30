@@ -112,19 +112,19 @@ func buildImages(cmd *cobra.Command, args []string) error {
 	if err := image.ChangeImageRefs(config.DirPath, "{DEFAULT_REGISTRY}", "docker.io/kaapana"); err != nil {
 		return err
 	}
-	if err := image.ChangeImageRefs(config.DirPath, "{KAAPANA_BUILD_VERSION}\",", "latest\",\nimage_pull_policy=\"IfNotPresent\",\n"); err != nil {
+	if err := image.ChangeImageRefs(config.DirPath, "{KAAPANA_BUILD_VERSION}\",", config.KaapanaBuildVersion+"\",\nimage_pull_policy=\"IfNotPresent\",\n"); err != nil {
 		return err
 	}
 
 	for _, prereqDockerfile := range prereqDockerfiles {
-		if _, err := image.BuildDockerImage(prereqDockerfile, "local-only/", config.NoRebuild); err != nil {
+		if _, err := image.BuildDockerImage(prereqDockerfile, "local-only/", config); err != nil {
 			return err
 		}
 	}
 
 	imageTags := []string{}
 	for _, dockerfile := range config.DockerfilePaths {
-		imageTag, err := image.BuildDockerImage(dockerfile, "docker.io/kaapana/", config.NoRebuild)
+		imageTag, err := image.BuildDockerImage(dockerfile, "docker.io/kaapana/", config)
 		if err != nil {
 			color.Red("Failed to build image: %s , err: %s", imageTags, err.Error())
 			return err

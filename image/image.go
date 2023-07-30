@@ -15,11 +15,12 @@ import (
 )
 
 type AppExtensionConfig struct {
-	DockerfilePaths []string `json:"dockerfile_paths"`
-	DirPath         string   `json:"dir_path"`
-	KaapanaPath     string   `json:"kaapana_path"`
-	NoSave          bool     `json:"no_save"`
-	NoRebuild       bool     `json:"no_rebuild"`
+	DockerfilePaths     []string `json:"dockerfile_paths"`
+	DirPath             string   `json:"dir_path"`
+	KaapanaPath         string   `json:"kaapana_path"`
+	KaapanaBuildVersion string   `json:"kaapana_build_version"`
+	NoSave              bool     `json:"no_save"`
+	NoRebuild           bool     `json:"no_rebuild"`
 }
 
 func ParseConfigFile(configPath string, noSave bool, noRebuild bool) (*AppExtensionConfig, error) {
@@ -332,7 +333,7 @@ func getLabelofDockerfile(dockerfile string) (string, error) {
 	return res, nil
 }
 
-func BuildDockerImage(dockerfile string, prefix string, noRebuild bool) (string, error) {
+func BuildDockerImage(dockerfile string, prefix string, config *AppExtensionConfig) (string, error) {
 	color.Blue("building docker image: %s\n", dockerfile)
 	imageName, err := getLabelofDockerfile(dockerfile)
 	if err != nil {
@@ -343,8 +344,8 @@ func BuildDockerImage(dockerfile string, prefix string, noRebuild bool) (string,
 	if strings.HasSuffix(ctxPath, suffix) {
 		ctxPath, _ = strings.CutSuffix(ctxPath, suffix)
 	}
-	tag := prefix + imageName + ":latest"
-	if imageExists(tag) && noRebuild {
+	tag := prefix + imageName + ":" + config.KaapanaBuildVersion
+	if imageExists(tag) && config.NoRebuild {
 		color.Yellow("image %s already exists, not building since no_rebuild==true", tag)
 		return imageName, nil
 	}
