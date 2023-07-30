@@ -122,10 +122,19 @@ func buildImages(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	imageTags := []string{}
 	for _, dockerfile := range config.DockerfilePaths {
-		if err := image.BuildAndSaveImage(config.DirPath, dockerfile, config); err != nil {
+		imageTag, err := image.BuildDockerImage(dockerfile, "docker.io/kaapana/", config.NoRebuild)
+		if err != nil {
+			color.Red("Failed to build image: %s , err: %s", imageTags, err.Error())
 			return err
 		}
+		imageTags = append(imageTags, imageTag)
+	}
+	err = image.SaveImages(imageTags, config.DirPath)
+	if err != nil {
+		color.Red("Failed to save images: %s , err: %s", imageTags, err.Error())
+		return err
 	}
 
 	color.Blue("Successfully built and saved the images.")

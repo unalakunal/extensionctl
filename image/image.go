@@ -358,9 +358,9 @@ func BuildDockerImage(dockerfile string, prefix string, noRebuild bool) (string,
 		return "", errors.New("failed to build Docker image: " + err.Error())
 	}
 
-	color.Magenta("successfully built %s in path %s\n", "local-only/"+imageName+":latest", dockerfile)
+	color.Magenta("successfully built %s in path %s\n", tag, dockerfile)
 
-	return imageName, nil
+	return tag, nil
 }
 
 func getFirstLine(filepath string) string {
@@ -371,30 +371,22 @@ func getFirstLine(filepath string) string {
 	return lines[0]
 }
 
-func BuildAndSaveImage(dirPath string, dockerfile string, config *AppExtensionConfig) error {
-	// build
-	imageName, err := BuildDockerImage(dockerfile, "docker.io/kaapana/", config.NoRebuild)
-	if err != nil {
-		color.Red(err.Error())
-		return err
-	}
-
-	if config.NoSave {
-		color.Yellow("image save disabled, returning after build")
-		return nil
-	}
-
+func SaveImages(imageNames []string, dirPath string) error {
 	// save
-	savePath := filepath.Join(dirPath, imageName+".tar")
-	fmt.Printf("saving image %s into %s...\n", "docker.io/kaapana/"+imageName, savePath)
-	command := exec.Command("docker", "save", "docker.io/kaapana/"+imageName+":latest", "-o", savePath)
+	savePath := filepath.Join(dirPath, "images.tar")
+	cmd := []string{"save", "-o", savePath}
+	for _, imageName := range imageNames {
+		cmd = append(cmd, imageName)
+	}
+	color.Blue("saving images %s into %s...\n", imageNames, savePath)
+	command := exec.Command("docker", cmd...)
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
 
-	err = command.Run()
+	err := command.Run()
 	if err != nil {
-		color.Red(err.Error())
-		return errors.New("failed to save Docker image: " + err.Error())
+		color.Red("failed to save Docker images: %s", err.Error())
+		return errors.New("failed to save Docker images: " + err.Error())
 	}
 
 	return nil
