@@ -2,5 +2,6 @@
     "dockerfile_paths": [], 
     "dir_path": "/path/to/kaapana/templates_and_examples/examples/services/hello-world",
     "kaapana_path": "/path/to/kaapana",
-    "kaapana_build_version": "0.0.0-latest"
+    "kaapana_build_version": "0.0.0-latest",
+    "custom_registry_url": "docker.io/kaapana"
 }

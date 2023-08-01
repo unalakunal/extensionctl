@@ -15,12 +15,14 @@ import (
 )
 
 type AppExtensionConfig struct {
-	DockerfilePaths     []string `json:"dockerfile_paths"`
-	DirPath             string   `json:"dir_path"`
-	KaapanaPath         string   `json:"kaapana_path"`
-	KaapanaBuildVersion string   `json:"kaapana_build_version"`
-	NoSave              bool     `json:"no_save"`
-	NoRebuild           bool     `json:"no_rebuild"`
+	DockerfilePaths      []string `json:"dockerfile_paths"`
+	DirPath              string   `json:"dir_path"`
+	KaapanaPath          string   `json:"kaapana_path"`
+	KaapanaBuildVersion  string   `json:"kaapana_build_version"`
+	NoSave               bool     `json:"no_save"`
+	NoRebuild            bool     `json:"no_rebuild"`
+	NoOverwriteOperators bool     `json:"no_overwrite_operators"`
+	CustomRegistryUrl    string   `json:"custom_registry_url"`
 }
 
 func ParseConfigFile(configPath string, noSave bool, noRebuild bool) (*AppExtensionConfig, error) {
@@ -36,6 +38,8 @@ func ParseConfigFile(configPath string, noSave bool, noRebuild bool) (*AppExtens
 	}
 	config.NoSave = noSave
 	config.NoRebuild = noRebuild
+
+	// TODO: make sure CustomRegistryUrl doesn't start with "https://" and doesn't end with "/"
 
 	return &config, nil
 }
@@ -333,7 +337,7 @@ func getLabelofDockerfile(dockerfile string) (string, error) {
 	return res, nil
 }
 
-func BuildDockerImage(dockerfile string, prefix string, config *AppExtensionConfig) (string, error) {
+func BuildDockerImage(dockerfile string, config *AppExtensionConfig, localOnly bool) (string, error) {
 	color.Blue("building docker image: %s\n", dockerfile)
 	imageName, err := getLabelofDockerfile(dockerfile)
 	if err != nil {
@@ -344,7 +348,11 @@ func BuildDockerImage(dockerfile string, prefix string, config *AppExtensionConf
 	if strings.HasSuffix(ctxPath, suffix) {
 		ctxPath, _ = strings.CutSuffix(ctxPath, suffix)
 	}
-	tag := prefix + imageName + ":" + config.KaapanaBuildVersion
+	registry := config.CustomRegistryUrl
+	if localOnly {
+		registry = "local-only"
+	}
+	tag := registry + "/" + imageName + ":" + config.KaapanaBuildVersion
 	if imageExists(tag) && config.NoRebuild {
 		color.Yellow("image %s already exists, not building since no_rebuild==true", tag)
 		return imageName, nil

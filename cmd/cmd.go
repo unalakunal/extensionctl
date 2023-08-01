@@ -109,22 +109,26 @@ func buildImages(cmd *cobra.Command, args []string) error {
 	}
 
 	// change image references
-	if err := image.ChangeImageRefs(config.DirPath, "{DEFAULT_REGISTRY}", "docker.io/kaapana"); err != nil {
-		return err
-	}
-	if err := image.ChangeImageRefs(config.DirPath, "{KAAPANA_BUILD_VERSION}\",", config.KaapanaBuildVersion+"\",\nimage_pull_policy=\"IfNotPresent\",\n"); err != nil {
-		return err
+	if config.NoOverwriteOperators != true {
+		if err := image.ChangeImageRefs(config.DirPath, "{DEFAULT_REGISTRY}", config.CustomRegistryUrl); err != nil {
+			return err
+		}
+		if err := image.ChangeImageRefs(config.DirPath, "{KAAPANA_BUILD_VERSION}\",", config.KaapanaBuildVersion+"\",\nimage_pull_policy=\"IfNotPresent\",\n"); err != nil {
+			return err
+		}
+	} else {
+		color.Blue("skipping changing operator py files")
 	}
 
 	for _, prereqDockerfile := range prereqDockerfiles {
-		if _, err := image.BuildDockerImage(prereqDockerfile, "local-only/", config); err != nil {
+		if _, err := image.BuildDockerImage(prereqDockerfile, config, true); err != nil {
 			return err
 		}
 	}
 
 	imageTags := []string{}
 	for _, dockerfile := range config.DockerfilePaths {
-		imageTag, err := image.BuildDockerImage(dockerfile, "docker.io/kaapana/", config)
+		imageTag, err := image.BuildDockerImage(dockerfile, config, false)
 		if err != nil {
 			color.Red("Failed to build image: %s , err: %s", imageTags, err.Error())
 			return err
@@ -170,6 +174,7 @@ func main() {
 	rootCmd.PersistentFlags().BoolP("no_color", "c", false, "Disable color")
 	rootCmd.PersistentFlags().BoolP("no_save", "s", false, "Disable image save")
 	rootCmd.PersistentFlags().BoolP("no_rebuild", "b", false, "Disable rebuilding existing images")
+	rootCmd.PersistentFlags().BoolP("no_overwrite_operators", "w", false, "Disable searching and replacing patterns in py files")
 
 	// Add subcommands for different functionalities
 	rootCmd.AddCommand(extensionsCmd)
