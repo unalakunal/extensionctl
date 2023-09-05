@@ -1,6 +1,7 @@
 package main
 
 import (
+	"extensionctl/chart"
 	"extensionctl/extension"
 	"extensionctl/image"
 	"fmt"
@@ -37,6 +38,38 @@ func packageChart(cmd *cobra.Command, args []string) error {
 	if noColor {
 		os.Setenv("NO_COLOR", "TRUE")
 	}
+
+	color.Magenta("Packaging helm chart...")
+	configPath := args[0]
+	config, err := chart.ParseConfigFile(configPath)
+	if err != nil {
+		return err
+	}
+	fmt.Println("parsed config file")
+
+	if err := ValidateConfig(config.DirPath, config.KaapanaPath); err != nil {
+		return err
+	}
+	fmt.Println("config validated")
+
+	// check requirements yaml
+	// if exists, helm dep up
+	// check if deployment.yaml or job.yaml exists under /charts/templates or /charts/<chart-name>/templates
+	resourceYaml, err := chart.FindResourceYaml(config)
+	valuesYaml, err := chart.FindValuesYaml(config)
+
+	// add to values.yaml -> custom_registry_url: "docker.io/kaapana"
+	// add to values.yaml -> pull_policy_images: "IfNotPresent"
+	// add to values.yaml ->
+	err = chart.EditValuesYaml(valuesYaml, config)
+
+	// TODO: probably not necessary at all
+	err = chart.EditResourceYaml(resourceYaml, config)
+
+	helmChart, err := chart.PackageChart(config)
+
+	color.Blue("Successfully packaged Helm chart as %s", helmChart)
+
 	return nil
 }
 
@@ -91,7 +124,7 @@ func buildImages(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Println("parsed config file")
 
-	if err := image.ValidateConfig(config); err != nil {
+	if err := ValidateConfig(config.DirPath, config.KaapanaPath); err != nil {
 		return err
 	}
 	fmt.Println("config validated")
