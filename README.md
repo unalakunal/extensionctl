@@ -38,6 +38,7 @@ One of the steps is to adapt the python files of the operators where the image i
 
 
 ## Future work
+- change kaapana_build_version to build_version in config yaml. If another templating is added to the dag-installer chart, there is no need that build_version == kaapana_build_version
 - add support for using a registry url instead of local kaapana_path
 - `--no_prereqs` flag (bool) disables building prereq images, assumes they are already built
 - `--overwrite_file_extensions` flag (default: .py)

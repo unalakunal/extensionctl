@@ -14,7 +14,7 @@ import (
 	"github.com/fatih/color"
 )
 
-type AppExtensionConfig struct {
+type ExtensionConfig struct {
 	DockerfilePaths      []string `json:"dockerfile_paths"`
 	DirPath              string   `json:"dir_path"`
 	KaapanaPath          string   `json:"kaapana_path"`
@@ -25,13 +25,13 @@ type AppExtensionConfig struct {
 	CustomRegistryUrl    string   `json:"custom_registry_url"`
 }
 
-func ParseConfigFile(configPath string, noSave bool, noRebuild bool) (*AppExtensionConfig, error) {
+func ParseConfigFile(configPath string, noSave bool, noRebuild bool) (*ExtensionConfig, error) {
 	file, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, err
 	}
 
-	var config AppExtensionConfig
+	var config ExtensionConfig
 	err = json.Unmarshal(file, &config)
 	if err != nil {
 		return nil, err
@@ -42,22 +42,6 @@ func ParseConfigFile(configPath string, noSave bool, noRebuild bool) (*AppExtens
 	// TODO: make sure CustomRegistryUrl doesn't start with "https://" and doesn't end with "/"
 
 	return &config, nil
-}
-
-func ValidateConfig(config *AppExtensionConfig) error {
-	if config.DirPath == "" || config.KaapanaPath == "" {
-		err := errors.New("<dir_path> or <kaapana_path> is empty")
-		color.Red(err.Error())
-		return err
-	}
-
-	if !isAbsolutePath(config.DirPath) || !isAbsolutePath(config.KaapanaPath) {
-		err := errors.New("<dir_path> or <kaapana_path> is not a valid absolute path")
-		color.Red(err.Error())
-		return err
-	}
-
-	return nil
 }
 
 func visitFile(path string, info os.DirEntry, err error) error {
@@ -75,11 +59,7 @@ func visitFile(path string, info os.DirEntry, err error) error {
 	return nil
 }
 
-func isAbsolutePath(path string) bool {
-	return filepath.IsAbs(path)
-}
-
-func GlobDockerfilePaths(config *AppExtensionConfig, configPath string) error {
+func GlobDockerfilePaths(config *ExtensionConfig, configPath string) error {
 	var dockerfilePaths []string
 	err := filepath.WalkDir(config.DirPath, func(path string, info os.DirEntry, err error) error {
 		if err != nil {
@@ -108,7 +88,7 @@ func GlobDockerfilePaths(config *AppExtensionConfig, configPath string) error {
 	return writeConfigFile(config, configPath)
 }
 
-func writeConfigFile(config *AppExtensionConfig, configPath string) error {
+func writeConfigFile(config *ExtensionConfig, configPath string) error {
 	file, err := json.MarshalIndent(config, "", "    ")
 	if err != nil {
 		color.Red(err.Error())
@@ -124,7 +104,7 @@ func writeConfigFile(config *AppExtensionConfig, configPath string) error {
 	return nil
 }
 
-func FindPrereqDockerfiles(config *AppExtensionConfig) ([]string, error) {
+func FindPrereqDockerfiles(config *ExtensionConfig) ([]string, error) {
 	prereqDockerfiles := make([]string, 0)
 
 	for _, dockerfile := range config.DockerfilePaths {
@@ -337,7 +317,7 @@ func getLabelofDockerfile(dockerfile string) (string, error) {
 	return res, nil
 }
 
-func BuildDockerImage(dockerfile string, config *AppExtensionConfig, localOnly bool) (string, error) {
+func BuildDockerImage(dockerfile string, config *ExtensionConfig, localOnly bool) (string, error) {
 	color.Blue("building docker image: %s\n", dockerfile)
 	imageName, err := getLabelofDockerfile(dockerfile)
 	if err != nil {
