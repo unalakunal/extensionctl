@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -409,7 +408,7 @@ func ChangeImageRefs(dirPath string, query string, newValue string) error {
 }
 
 func searchAndReplace(file string, query string, newValue string) error {
-	content, err := ioutil.ReadFile(file)
+	content, err := os.ReadFile(file)
 	if err != nil {
 		color.Red(err.Error())
 		return err
@@ -419,7 +418,7 @@ func searchAndReplace(file string, query string, newValue string) error {
 		fmt.Printf("Changing %s to %s in file %s\n", query, newValue, file)
 	}
 	newContent := strings.ReplaceAll(string(content), query, newValue)
-	err = ioutil.WriteFile(file, []byte(newContent), 0)
+	err = os.WriteFile(file, []byte(newContent), 0)
 	if err != nil {
 		color.Red(err.Error())
 		return err

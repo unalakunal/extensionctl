@@ -43,42 +43,70 @@ func packageChart(cmd *cobra.Command, args []string) error {
 	configPath := args[0]
 	config, err := chart.ParseConfigFile(configPath)
 	if err != nil {
+		color.Red("failed to Parse config file %s", err.Error())
 		return err
 	}
-	fmt.Println("parsed config file")
+	color.White("parsed config file")
 
 	if err := ValidateConfig(config.DirPath, config.KaapanaPath); err != nil {
 		return err
 	}
-	fmt.Println("config validated")
+	color.White("config validated")
 
-	// check requirements yaml
-	// if exists, helm dep up
-	// check if deployment.yaml or job.yaml exists under /charts/templates or /charts/<chart-name>/templates
-	resourceYaml, err := chart.FindResourceYaml(config)
-	valuesYaml, err := chart.FindValuesYaml(config)
+	// chart path
+	config, err = chart.FindChartPath(config)
+	if err != nil {
+		color.Red("failed to find the chart folder containing Chart.yaml under %s", config.DirPath)
+		return err
+	}
+	color.Magenta("ChartPath is set as %s", config.ChartPath)
 
-	// add to values.yaml -> custom_registry_url: "docker.io/kaapana"
-	// add to values.yaml -> pull_policy_images: "IfNotPresent"
-	// add to values.yaml ->
-	err = chart.EditValuesYaml(valuesYaml, config)
+	// requirements
+	err = chart.HandleRequirements(config)
+	if err != nil {
+		color.Red("failed to update requirements %s", err.Error())
+		return err
+	}
+	color.Magenta("Succesfully updated chart requirements")
 
-	// TODO: probably not necessary at all
-	err = chart.EditResourceYaml(resourceYaml, config)
+	// Chart.yaml
+	chart.EditChartYaml(config)
+	if err != nil {
+		color.Red("failed to update Chart.yaml %s", err.Error())
+		return err
+	}
+	color.Magenta("Succesfully updated Chart.yaml")
 
-	helmChart, err := chart.PackageChart(config)
+	// values.yaml
+	err = chart.EditValuesYaml(config)
+	if err != nil {
+		color.Red("failed to update values.yaml %s", err.Error())
+		return err
+	}
+	color.Magenta("Succesfully updated values.yaml")
 
-	color.Blue("Successfully packaged Helm chart as %s", helmChart)
+	// package
+	err = chart.PackageChart(config)
+	if err != nil {
+		color.Red("failed to package chart %s", err.Error())
+		return err
+	}
+
+	color.Magenta("Successfully packaged Helm chart")
 
 	return nil
 }
 
 func buildAll(cmd *cobra.Command, args []string) error {
-	noColor, _ := cmd.Flags().GetBool("no_color")
-	if noColor {
-		os.Setenv("NO_COLOR", "TRUE")
+	color.Green("Building images and packaging charts")
+	err := buildImages(cmd, args)
+	if err != nil {
+		return err
 	}
-	color.Magenta("building both charts and images")
+	err = packageChart(cmd, args)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -116,6 +144,7 @@ func buildImages(cmd *cobra.Command, args []string) error {
 	if noColor {
 		os.Setenv("NO_COLOR", "TRUE")
 	}
+
 	color.Magenta("Building images...")
 	configPath := args[0]
 	config, err := image.ParseConfigFile(configPath, noSave, noRebuild)
