@@ -227,16 +227,16 @@ func main() {
 
 	buildCmd := &cobra.Command{
 		Use:   "build",
-		Short: "generate chart tgz and build/save Docker images",
+		Short: "generate chart tgz, build and save Docker images",
 		Args:  cobra.ExactArgs(1),
 		RunE:  buildAll,
 	}
 
 	// Flags
-	rootCmd.PersistentFlags().BoolP("no_color", "c", false, "Disable color")
-	rootCmd.PersistentFlags().BoolP("no_save", "s", false, "Disable image save")
-	rootCmd.PersistentFlags().BoolP("no_rebuild", "b", false, "Disable rebuilding existing images")
-	rootCmd.PersistentFlags().BoolP("no_overwrite_operators", "w", false, "Disable searching and replacing patterns in py files")
+	rootCmd.PersistentFlags().BoolP("no_color", "c", false, "disable colored terminal output")
+	rootCmd.PersistentFlags().BoolP("no_save", "s", false, "disable saving images as .tar files")
+	rootCmd.PersistentFlags().BoolP("no_rebuild", "b", false, "disable rebuilding existing images")
+	rootCmd.PersistentFlags().BoolP("no_overwrite_operators", "w", false, "disable searching and replacing patterns in py files")
 
 	// Add subcommands for different functionalities
 	rootCmd.AddCommand(extensionsCmd)
