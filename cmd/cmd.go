@@ -171,7 +171,7 @@ func buildImages(cmd *cobra.Command, args []string) error {
 	}
 
 	// change image references
-	if config.NoOverwriteOperators != true {
+	if !config.NoOverwriteOperators {
 		if err := image.ChangeImageRefs(config.DirPath, "{DEFAULT_REGISTRY}", config.CustomRegistryUrl); err != nil {
 			return err
 		}
@@ -181,6 +181,12 @@ func buildImages(cmd *cobra.Command, args []string) error {
 	} else {
 		color.Blue("skipping changing operator py files")
 	}
+
+	prereqDockerfiles, err = image.PrioritizePrereqs(prereqDockerfiles)
+	if err != nil {
+		return err
+	}
+	color.Blue("prioritized prereqDockerfiles %s", prereqDockerfiles)
 
 	for _, prereqDockerfile := range prereqDockerfiles {
 		if _, err := image.BuildDockerImage(prereqDockerfile, config, true); err != nil {
@@ -197,7 +203,7 @@ func buildImages(cmd *cobra.Command, args []string) error {
 		}
 		imageTags = append(imageTags, imageTag)
 	}
-	err = image.SaveImages(imageTags, config.DirPath)
+	err = image.SaveImages(imageTags, config.DirPath, config.ContainerEngine)
 	if err != nil {
 		color.Red("Failed to save images: %s , err: %s", imageTags, err.Error())
 		return err

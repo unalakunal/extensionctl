@@ -22,6 +22,7 @@ type ExtensionConfig struct {
 	NoRebuild            bool     `json:"no_rebuild"`
 	NoOverwriteOperators bool     `json:"no_overwrite_operators"`
 	CustomRegistryUrl    string   `json:"custom_registry_url"`
+	ContainerEngine      string   `json:"container_engine"`
 }
 
 func ParseConfigFile(configPath string, noSave bool, noRebuild bool) (*ExtensionConfig, error) {
@@ -101,6 +102,28 @@ func writeConfigFile(config *ExtensionConfig, configPath string) error {
 	}
 
 	return nil
+}
+
+func PrioritizePrereqs(prereqDockerfiles []string) ([]string, error) {
+	noPrereq := []string{}
+	prereq := []string{}
+	for _, dockerfile := range prereqDockerfiles {
+		lines, err := readLines(dockerfile)
+		if err != nil {
+			color.Red(err.Error())
+			return []string{}, err
+		}
+
+		firstLine := strings.TrimSpace(lines[0])
+		if strings.HasPrefix(firstLine, "FROM local-only/") {
+			prereq = append(prereq, dockerfile)
+		} else {
+			noPrereq = append(noPrereq, dockerfile)
+		}
+	}
+
+	noPrereq = append(noPrereq, prereq...)
+	return noPrereq, nil
 }
 
 func FindPrereqDockerfiles(config *ExtensionConfig) ([]string, error) {
@@ -331,13 +354,17 @@ func BuildDockerImage(dockerfile string, config *ExtensionConfig, localOnly bool
 	if localOnly {
 		registry = "local-only"
 	}
-	tag := registry + "/" + imageName + ":" + config.KaapanaBuildVersion
-	if imageExists(tag) && config.NoRebuild {
+	version := config.KaapanaBuildVersion
+	if localOnly {
+		version = "latest"
+	}
+	tag := registry + "/" + imageName + ":" + version
+	if imageExists(tag, config.ContainerEngine) && config.NoRebuild {
 		color.Yellow("image %s already exists, not building since no_rebuild==true", tag)
 		return imageName, nil
 	}
 	color.Blue("imageName %s, tag %s\n", imageName, tag)
-	command := exec.Command("docker", "build", "-t", tag, ctxPath)
+	command := exec.Command(config.ContainerEngine, "build", "-t", tag, ctxPath)
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
 
@@ -359,7 +386,7 @@ func getFirstLine(filepath string) string {
 	return lines[0]
 }
 
-func SaveImages(imageNames []string, dirPath string) error {
+func SaveImages(imageNames []string, dirPath string, containerEngine string) error {
 	// save
 	savePath := filepath.Join(dirPath, "images.tar")
 	cmd := []string{"save", "-o", savePath}
@@ -367,7 +394,7 @@ func SaveImages(imageNames []string, dirPath string) error {
 		cmd = append(cmd, imageName)
 	}
 	color.Blue("saving images %s into %s...\n", imageNames, savePath)
-	command := exec.Command("docker", cmd...)
+	command := exec.Command(containerEngine, cmd...)
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
 
@@ -427,8 +454,8 @@ func searchAndReplace(file string, query string, newValue string) error {
 	return nil
 }
 
-func imageExists(image string) bool {
-	out, err := exec.Command("docker", "images", image).Output()
+func imageExists(image string, containerEngine string) bool {
+	out, err := exec.Command(containerEngine, "images", image).Output()
 	if err != nil {
 		color.Red(err.Error())
 	}

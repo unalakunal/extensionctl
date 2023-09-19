@@ -12,8 +12,8 @@ Kaapana Extension Manager helper cli tool
 
 ### 1. Requirements
 
-#### A. Docker and Helm
-Both docker and helm are necessary for the script to run. Make sure to install the latest versions of each.
+#### A. Container Engine and Helm
+Helm and a container engine (currently supporting Docker and Podman) are necessary for the script to run. Make sure to install the latest versions of each.
 
 #### B. Having the right extension folder structure
 
@@ -58,6 +58,7 @@ Here is how a config file looks like for the `otsus-method` explained above.
     "kaapana_path": "/path/to/kaapana", // root dir of Kaapana repo
     "kaapana_build_version": "0.0.0-latest", // version of your Kaapana instance, can be found in the bottom bar on the Kaapana website, such as "kaapana-admin-chart: 0.2.2"
     "custom_registry_url": "docker.io/kaapana" // registry url including project Gitlab template: "registry.<gitlab-url>/<group-or-user>/<project>". Keep the default value unless there is a need to include a specific registry in the image tag
+    "container_engine": "docker" // either docker or podman
 }
 ```
 
