@@ -54,7 +54,6 @@ func KubeGetDeployment(deploymentName string, namespace string) (*appv1.Deployme
 }
 
 func GetEnvVarFromDeployment(deployment *appv1.Deployment, envVarName string) (string, error) {
-	color.Blue("Getting KAAPANA_BUILD_VERSION from deployment: %s under namespace: %s", deployment.Name, deployment.Namespace)
 	val := ""
 	valFound := false
 	containers := deployment.Spec.Template.Spec.Containers
@@ -72,6 +71,6 @@ func GetEnvVarFromDeployment(deployment *appv1.Deployment, envVarName string) (s
 	if !valFound {
 		return "", fmt.Errorf("KAAPANA_BUILD_VERSION does not exist in env variables of deployment %s", deployment.Name)
 	}
-	color.Magenta("Variable %s has value %s", envVarName, val)
+	color.Blue("Variable %s has value %s", envVarName, val)
 	return val, nil
 }
