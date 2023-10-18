@@ -4,6 +4,7 @@ import (
 	"extensionctl/chart"
 	"extensionctl/extension"
 	"extensionctl/image"
+	"extensionctl/util"
 	"fmt"
 	"os"
 
@@ -34,21 +35,29 @@ func ChartCmd() *cobra.Command {
 }
 
 func packageChart(cmd *cobra.Command, args []string) error {
+	noSave, _ := cmd.Flags().GetBool("no_save")
+	noRebuild, _ := cmd.Flags().GetBool("no_rebuild")
 	noColor, _ := cmd.Flags().GetBool("no_color")
+
+	if noColor {
+		os.Setenv("NO_COLOR", "TRUE")
+	}
+
+	color.Magenta("Building images...")
 	if noColor {
 		os.Setenv("NO_COLOR", "TRUE")
 	}
 
 	color.Magenta("Packaging helm chart...")
 	configPath := args[0]
-	config, err := chart.ParseConfigFile(configPath)
+	config, err := util.ParseConfigFile(configPath, noSave, noRebuild)
 	if err != nil {
 		color.Red("failed to Parse config file %s", err.Error())
 		return err
 	}
 	color.White("parsed config file")
 
-	if err := ValidateConfig(config.DirPath, config.KaapanaPath); err != nil {
+	if err := util.ValidateConfig(config.DirPath, config.KaapanaPath); err != nil {
 		return err
 	}
 	color.White("config validated")
@@ -57,6 +66,10 @@ func packageChart(cmd *cobra.Command, args []string) error {
 	config, err = chart.FindChartPath(config)
 	if err != nil {
 		color.Red("failed to find the chart folder containing Chart.yaml under %s", config.DirPath)
+		return err
+	}
+	err = util.WriteConfigFile(config, configPath)
+	if err != nil {
 		return err
 	}
 	color.Magenta("ChartPath is set as %s", config.ChartPath)
@@ -147,16 +160,15 @@ func buildImages(cmd *cobra.Command, args []string) error {
 
 	color.Magenta("Building images...")
 	configPath := args[0]
-	config, err := image.ParseConfigFile(configPath, noSave, noRebuild)
+	config, err := util.ParseConfigFile(configPath, noSave, noRebuild)
 	if err != nil {
 		return err
 	}
-	fmt.Println("parsed config file")
 
-	if err := ValidateConfig(config.DirPath, config.KaapanaPath); err != nil {
+	if err := util.ValidateConfig(config.DirPath, config.KaapanaPath); err != nil {
 		return err
 	}
-	fmt.Println("config validated")
+	color.Blue("config validated")
 
 	if len(config.DockerfilePaths) == 0 {
 		if err := image.GlobDockerfilePaths(config, configPath); err != nil {

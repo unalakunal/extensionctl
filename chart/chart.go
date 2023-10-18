@@ -2,8 +2,8 @@ package chart
 
 import (
 	"bufio"
-	"encoding/json"
 	"errors"
+	"extensionctl/util"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,15 +12,6 @@ import (
 	"github.com/fatih/color"
 	"gopkg.in/yaml.v3"
 )
-
-type ExtensionConfig struct {
-	DockerfilePaths     []string `json:"dockerfile_paths"`
-	DirPath             string   `json:"dir_path"`
-	KaapanaPath         string   `json:"kaapana_path"`
-	KaapanaBuildVersion string   `json:"kaapana_build_version"`
-	CustomRegistryUrl   string   `json:"custom_registry_url"`
-	ChartPath           string   `json:"chart_path"`
-}
 
 func readLines(filepath string) ([]string, error) {
 	file, err := os.Open(filepath)
@@ -86,21 +77,6 @@ func yamlWrite(yamlPath string, data map[interface{}]interface{}) error {
 	return nil
 }
 
-func ParseConfigFile(configPath string) (*ExtensionConfig, error) {
-	file, err := os.ReadFile(configPath)
-	if err != nil {
-		return nil, err
-	}
-
-	var config ExtensionConfig
-	err = json.Unmarshal(file, &config)
-	if err != nil {
-		return nil, err
-	}
-
-	return &config, nil
-}
-
 func findYamlInChartPath(chartPath string, fileName string) (string, error) {
 	foundPath := ""
 
@@ -125,7 +101,7 @@ func findYamlInChartPath(chartPath string, fileName string) (string, error) {
 	return foundPath, nil
 }
 
-func FindChartPath(config *ExtensionConfig) (*ExtensionConfig, error) {
+func FindChartPath(config *util.ExtensionConfig) (*util.ExtensionConfig, error) {
 	foundChart := ""
 
 	err := filepath.Walk(config.DirPath, func(filePath string, info os.FileInfo, err error) error {
@@ -154,7 +130,7 @@ func FindChartPath(config *ExtensionConfig) (*ExtensionConfig, error) {
 	return config, nil
 }
 
-func HandleRequirements(config *ExtensionConfig) error {
+func HandleRequirements(config *util.ExtensionConfig) error {
 	// check if requirements.yaml exists
 	reqYaml, err := findYamlInChartPath(config.ChartPath, "requirements.yaml")
 	if err != nil {
@@ -178,7 +154,7 @@ func HandleRequirements(config *ExtensionConfig) error {
 	return nil
 }
 
-func EditChartYaml(config *ExtensionConfig) error {
+func EditChartYaml(config *util.ExtensionConfig) error {
 	// Changes 'version' to config.KaapanaBuildVersion
 
 	// read file
@@ -206,7 +182,7 @@ func EditChartYaml(config *ExtensionConfig) error {
 	return nil
 }
 
-func EditValuesYaml(config *ExtensionConfig) error {
+func EditValuesYaml(config *util.ExtensionConfig) error {
 	/* Adds
 	 * custom_registry_url: config.CustomRegistryUrl
 	 * pull_policy_images: IfNotPresent
@@ -235,7 +211,7 @@ func EditValuesYaml(config *ExtensionConfig) error {
 	return nil
 }
 
-func PackageChart(config *ExtensionConfig) error {
+func PackageChart(config *util.ExtensionConfig) error {
 	color.Blue("running helm package %s -d %s --debug", config.ChartPath, config.ChartPath)
 	command := exec.Command("helm", "package", config.ChartPath, "-d", config.ChartPath, "--debug")
 	command.Stdout = os.Stdout

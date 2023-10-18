@@ -2,8 +2,8 @@ package image
 
 import (
 	"bufio"
-	"encoding/json"
 	"errors"
+	"extensionctl/util"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,53 +13,7 @@ import (
 	"github.com/fatih/color"
 )
 
-type ExtensionConfig struct {
-	DockerfilePaths      []string `json:"dockerfile_paths"`
-	DirPath              string   `json:"dir_path"`
-	KaapanaPath          string   `json:"kaapana_path"`
-	KaapanaBuildVersion  string   `json:"kaapana_build_version"`
-	NoSave               bool     `json:"no_save"`
-	NoRebuild            bool     `json:"no_rebuild"`
-	NoOverwriteOperators bool     `json:"no_overwrite_operators"`
-	CustomRegistryUrl    string   `json:"custom_registry_url"`
-	ContainerEngine      string   `json:"container_engine"`
-}
-
-func ParseConfigFile(configPath string, noSave bool, noRebuild bool) (*ExtensionConfig, error) {
-	file, err := os.ReadFile(configPath)
-	if err != nil {
-		return nil, err
-	}
-
-	var config ExtensionConfig
-	err = json.Unmarshal(file, &config)
-	if err != nil {
-		return nil, err
-	}
-	config.NoSave = noSave
-	config.NoRebuild = noRebuild
-
-	// TODO: make sure CustomRegistryUrl doesn't start with "https://" and doesn't end with "/"
-
-	return &config, nil
-}
-
-func visitFile(path string, info os.DirEntry, err error) error {
-	if err != nil {
-		color.Red("Encountered error: %v\n", err)
-		return err
-	}
-
-	if info.IsDir() {
-		// Skip directories
-		return nil
-	}
-
-	fmt.Println(path)
-	return nil
-}
-
-func GlobDockerfilePaths(config *ExtensionConfig, configPath string) error {
+func GlobDockerfilePaths(config *util.ExtensionConfig, configPath string) error {
 	var dockerfilePaths []string
 	err := filepath.WalkDir(config.DirPath, func(path string, info os.DirEntry, err error) error {
 		if err != nil {
@@ -85,23 +39,7 @@ func GlobDockerfilePaths(config *ExtensionConfig, configPath string) error {
 
 	config.DockerfilePaths = dockerfilePaths
 
-	return writeConfigFile(config, configPath)
-}
-
-func writeConfigFile(config *ExtensionConfig, configPath string) error {
-	file, err := json.MarshalIndent(config, "", "    ")
-	if err != nil {
-		color.Red(err.Error())
-		return err
-	}
-
-	err = os.WriteFile(configPath, file, 0644)
-	if err != nil {
-		color.Red(err.Error())
-		return err
-	}
-
-	return nil
+	return util.WriteConfigFile(config, configPath)
 }
 
 func PrioritizePrereqs(prereqDockerfiles []string) ([]string, error) {
@@ -126,7 +64,7 @@ func PrioritizePrereqs(prereqDockerfiles []string) ([]string, error) {
 	return noPrereq, nil
 }
 
-func FindPrereqDockerfiles(config *ExtensionConfig) ([]string, error) {
+func FindPrereqDockerfiles(config *util.ExtensionConfig) ([]string, error) {
 	prereqDockerfiles := make([]string, 0)
 
 	for _, dockerfile := range config.DockerfilePaths {
@@ -339,7 +277,7 @@ func getLabelofDockerfile(dockerfile string) (string, error) {
 	return res, nil
 }
 
-func BuildDockerImage(dockerfile string, config *ExtensionConfig, localOnly bool) (string, error) {
+func BuildDockerImage(dockerfile string, config *util.ExtensionConfig, localOnly bool) (string, error) {
 	color.Blue("building docker image: %s\n", dockerfile)
 	imageName, err := getLabelofDockerfile(dockerfile)
 	if err != nil {

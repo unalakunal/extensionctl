@@ -53,12 +53,12 @@ Here is how a config file looks like for the `otsus-method` explained above.
 `config.json`:
 ```
 {
-    "dockerfile_paths": [], // if empty, all dockerfiles will be found across kaapana_path and appended into the list
+    "dockerfile_paths": [], // if empty or removed, all dockerfiles will be found across kaapana_path and appended into the list
     "dir_path": "/path/to/kaapana/templates_and_examples/examples/processing-pipelines/otsus-method", // root directory of the extension, doesn't necessarily have to be under kaapana_path
     "kaapana_path": "/path/to/kaapana", // root dir of Kaapana repo
-    "kaapana_build_version": "0.0.0-latest", // version of your Kaapana instance, can be found in the bottom bar on the Kaapana website, such as "kaapana-admin-chart: 0.2.2"
-    "custom_registry_url": "docker.io/kaapana" // registry url including project Gitlab template: "registry.<gitlab-url>/<group-or-user>/<project>". Keep the default value unless there is a need to include a specific registry in the image tag
-    "container_engine": "docker" // either docker or podman
+    "kaapana_build_version": "0.0.0-latest", // version of your Kaapana instance, can be found in the bottom bar on the Kaapana platform, such as "kaapana-admin-chart: 0.2.2". If empty or removed, script will assume a platform is running on the machine and will try to fetch it from deployments
+    "custom_registry_url": "docker.io/kaapana" // registry url including project Gitlab template: "registry.<gitlab-url>/<group-or-user>/<project>". Keep the default value unless there is a need to include a specific registry in the image tag. If empty or removed, script will assume a platform is running on the machine and will try to fetch it from deployments
+    "container_engine": "docker" // docker or podman
 }
 ```
 
@@ -78,6 +78,8 @@ One of the steps is to adapt the python files of the operators where the image i
 
 ## Future work
 
+- perform operations in a /build folder to avoid overwriting original files
+- add log levels for verbose output
 - change kaapana_build_version to build_version in config yaml. If another templating is added to the dag-installer chart, there is no need that build_version == kaapana_build_version
 - add -o for specifying output path
 - add support for using a registry url instead of local kaapana_path and fetch the repo
@@ -85,4 +87,4 @@ One of the steps is to adapt the python files of the operators where the image i
 - `--overwrite_file_extensions` flag (default: .py)
 - `--overwrite_pattern` flag (default: {DEFAULT_REGISTRY},"docker.io/kaapana",{KAAPANA_BUILD_VERSION},"0.0.0-latest")
 - `podman` support
-- only save last layers if prerequisites are already available
+- only save last layers if prerequisites are already available (not sure if importing layers in microk8s ctr is possible)
