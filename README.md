@@ -78,6 +78,7 @@ One of the steps is to adapt the python files of the operators where the image i
 
 ## Future work
 
+- add --version
 - perform operations in a /build folder to avoid overwriting original files
 - add log levels for verbose output
 - change kaapana_build_version to build_version in config yaml. If another templating is added to the dag-installer chart, there is no need that build_version == kaapana_build_version
